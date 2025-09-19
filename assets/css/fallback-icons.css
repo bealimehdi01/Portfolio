@@ -1,0 +1,53 @@
+/* Fallback styles for Font Awesome icons when CDN is blocked */
+.fas, .fab {
+    font-family: 'Arial', sans-serif;
+    font-style: normal;
+    font-weight: normal;
+    speak: none;
+    display: inline-block;
+    text-decoration: inherit;
+    text-align: center;
+    font-variant: normal;
+    text-transform: none;
+    line-height: 1;
+}
+
+/* Theme toggle icons */
+.fa-moon::before { content: '🌙'; }
+.fa-sun::before { content: '☀️'; }
+
+/* Navigation and UI icons */
+.fa-arrow-right::before { content: '→'; }
+.fa-envelope::before { content: '✉️'; }
+.fa-chevron-down::before { content: '↓'; }
+.fa-user-circle::before { content: '👤'; }
+.fa-code::before { content: '</> '; }
+
+/* Skill icons */
+.fa-html5::before { content: 'HTML'; font-size: 0.8em; }
+.fa-css3-alt::before { content: 'CSS'; font-size: 0.8em; }
+.fa-js-square::before { content: 'JS'; font-size: 0.8em; font-weight: bold; }
+.fa-react::before { content: 'React'; font-size: 0.7em; }
+.fa-node-js::before { content: 'Node'; font-size: 0.7em; }
+.fa-python::before { content: 'Py'; font-size: 0.8em; }
+.fa-database::before { content: '🗄️'; }
+.fa-server::before { content: '🖥️'; }
+.fa-git-alt::before { content: 'Git'; font-size: 0.8em; }
+.fa-docker::before { content: '🐳'; }
+.fa-aws::before { content: 'AWS'; font-size: 0.7em; }
+.fa-code-branch::before { content: '🔀'; }
+
+/* Project icons */
+.fa-laptop-code::before { content: '💻'; }
+.fa-mobile-alt::before { content: '📱'; }
+.fa-chart-line::before { content: '📈'; }
+.fa-external-link-alt::before { content: '🔗'; }
+.fa-github::before { content: '⭐'; }
+
+/* Contact icons */
+.fa-phone::before { content: '📞'; }
+.fa-map-marker-alt::before { content: '📍'; }
+.fa-linkedin::before { content: 'in'; font-weight: bold; background: #0077b5; color: white; padding: 0.2em; border-radius: 2px; }
+.fa-twitter::before { content: '🐦'; }
+.fa-instagram::before { content: '📷'; }
+.fa-paper-plane::before { content: '✈️'; }
