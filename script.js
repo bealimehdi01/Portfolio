@@ -1,3 +1,16 @@
+// EmailJS Configuration
+// Replace these with your actual EmailJS credentials
+const EMAILJS_PUBLIC_KEY = 'f1_-zhshNpK1QBwCS'; // Replace with your public key
+const EMAILJS_SERVICE_ID = 'service_04s34b8'; // Replace with your service ID  
+const EMAILJS_TEMPLATE_ID = 'template_ez6fmiw'; // Replace with your template ID
+
+// Initialize EmailJS
+(function() {
+    if (typeof emailjs !== 'undefined' && EMAILJS_PUBLIC_KEY !== 'YOUR_EMAILJS_PUBLIC_KEY') {
+        emailjs.init(EMAILJS_PUBLIC_KEY);
+    }
+})();
+
 // Theme Toggle Functionality
 const themeToggle = document.querySelector('.theme-toggle');
 const body = document.body;
@@ -317,22 +330,60 @@ window.addEventListener('scroll', () => {
 
 // Contact Form Handling
 const contactForm = document.getElementById('contact-form');
+const submitBtn = contactForm.querySelector('button[type="submit"]');
+const submitBtnText = submitBtn.querySelector('span');
+const submitBtnIcon = submitBtn.querySelector('i');
 
-contactForm.addEventListener('submit', (e) => {
+contactForm.addEventListener('submit', async (e) => {
     e.preventDefault();
     
-    // Get form data
-    const formData = new FormData(contactForm);
-    const formObject = {};
-    formData.forEach((value, key) => {
-        formObject[key] = value;
-    });
+    // Check if EmailJS is loaded and configured
+    if (typeof emailjs === 'undefined') {
+        showNotification('Email service is not available. Please try again later or contact me directly.', 'error');
+        return;
+    }
     
-    // Show success message (in a real application, you would send this to a server)
-    showNotification('Thank you for your message! I\'ll get back to you soon.', 'success');
+    if (EMAILJS_PUBLIC_KEY === 'YOUR_EMAILJS_PUBLIC_KEY' || 
+        EMAILJS_SERVICE_ID === 'YOUR_EMAILJS_SERVICE_ID' || 
+        EMAILJS_TEMPLATE_ID === 'YOUR_EMAILJS_TEMPLATE_ID') {
+        showNotification('EmailJS is not configured. Please set up your EmailJS credentials.', 'error');
+        return;
+    }
     
-    // Reset form
-    contactForm.reset();
+    // Show loading state
+    submitBtn.disabled = true;
+    submitBtnText.textContent = 'Sending...';
+    submitBtnIcon.className = 'fas fa-spinner fa-spin';
+    
+    try {
+        // Get form data
+        const formData = new FormData(contactForm);
+        const templateParams = {
+            from_name: formData.get('name'),
+            from_email: formData.get('email'),
+            subject: formData.get('subject'),
+            message: formData.get('message'),
+            to_name: 'Ali Mehdi Sayyed', // Can be customized
+        };
+        
+        // Send email using EmailJS
+        await emailjs.send(EMAILJS_SERVICE_ID, EMAILJS_TEMPLATE_ID, templateParams);
+        
+        // Show success message
+        showNotification('Thank you for your message! I\'ll get back to you soon.', 'success');
+        
+        // Reset form
+        contactForm.reset();
+        
+    } catch (error) {
+        console.error('Failed to send email:', error);
+        showNotification('Failed to send message. Please try again or contact me directly.', 'error');
+    } finally {
+        // Reset button state
+        submitBtn.disabled = false;
+        submitBtnText.textContent = 'Send Message';
+        submitBtnIcon.className = 'fas fa-paper-plane';
+    }
 });
 
 // Notification System
@@ -485,34 +536,461 @@ document.querySelectorAll('.project-card').forEach(card => {
     });
 });
 
-// Easter Egg - Konami Code
+// Easter Egg - Konami Code with Mario Game
 let konamiCode = [38, 38, 40, 40, 37, 39, 37, 39, 66, 65];
 let konamiIndex = 0;
+let gameActive = false;
+let gameScore = 0;
+let gameCoins = [];
+let playerPosition = { x: 50, y: 80 };
+let gameContainer = null;
+let gameAudio = null;
+let gameInterval = null;
+let coinCount = 0;
+const totalCoins = 15;
 
+// Create game audio context
+function createGameAudio() {
+    // Create a simple Mario-style power-up sound using Web Audio API
+    const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+    
+    function playPowerUpSound() {
+        const oscillator = audioContext.createOscillator();
+        const gainNode = audioContext.createGain();
+        
+        oscillator.connect(gainNode);
+        gainNode.connect(audioContext.destination);
+        
+        // Mario power-up melody frequencies
+        const notes = [523.25, 659.25, 783.99, 1046.5, 1318.5];
+        let noteIndex = 0;
+        
+        oscillator.frequency.setValueAtTime(notes[0], audioContext.currentTime);
+        gainNode.gain.setValueAtTime(0.3, audioContext.currentTime);
+        
+        const playNextNote = () => {
+            if (noteIndex < notes.length - 1) {
+                noteIndex++;
+                oscillator.frequency.setValueAtTime(notes[noteIndex], audioContext.currentTime + noteIndex * 0.1);
+            }
+        };
+        
+        for (let i = 0; i < notes.length; i++) {
+            setTimeout(playNextNote, i * 100);
+        }
+        
+        oscillator.start(audioContext.currentTime);
+        oscillator.stop(audioContext.currentTime + 0.8);
+        
+        gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.8);
+    }
+    
+    function playCoinSound() {
+        const oscillator = audioContext.createOscillator();
+        const gainNode = audioContext.createGain();
+        
+        oscillator.connect(gainNode);
+        gainNode.connect(audioContext.destination);
+        
+        oscillator.frequency.setValueAtTime(800, audioContext.currentTime);
+        oscillator.frequency.setValueAtTime(1200, audioContext.currentTime + 0.1);
+        gainNode.gain.setValueAtTime(0.2, audioContext.currentTime);
+        gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.2);
+        
+        oscillator.start(audioContext.currentTime);
+        oscillator.stop(audioContext.currentTime + 0.2);
+    }
+    
+    return { playPowerUpSound, playCoinSound };
+}
+
+// Create the Mario-style game
+function createMarioGame() {
+    gameContainer = document.createElement('div');
+    gameContainer.id = 'mario-game';
+    gameContainer.innerHTML = `
+        <div class="game-ui">
+            <div class="score">Score: <span id="game-score">0</span></div>
+            <div class="coins-left">Coins: <span id="coins-collected">0</span>/${totalCoins}</div>
+            <div class="instructions">Use ARROW KEYS to move and collect coins!</div>
+        </div>
+        <div class="game-area" id="game-area">
+            <div class="player" id="mario-player">🍕</div>
+        </div>
+        <div class="game-message" id="game-message"></div>
+    `;
+    
+    // Add game styles
+    const gameStyles = document.createElement('style');
+    gameStyles.textContent = `
+        #mario-game {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            background: linear-gradient(to bottom, #87CEEB 0%, #87CEEB 60%, #228B22 60%, #228B22 100%);
+            z-index: 10000;
+            font-family: 'Arial', sans-serif;
+            overflow: hidden;
+        }
+        
+        .game-ui {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            right: 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            color: white;
+            font-weight: bold;
+            font-size: 18px;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.7);
+            z-index: 10001;
+        }
+        
+        .instructions {
+            font-size: 14px;
+            color: #FFD700;
+            animation: pulse 2s infinite;
+        }
+        
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.7; }
+        }
+        
+        .game-area {
+            position: relative;
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+        }
+        
+        .player {
+            position: absolute;
+            width: 40px;
+            height: 40px;
+            font-size: 30px;
+            transition: all 0.1s ease;
+            z-index: 10002;
+            filter: drop-shadow(2px 2px 4px rgba(0,0,0,0.5));
+        }
+        
+        .coin {
+            position: absolute;
+            width: 30px;
+            height: 30px;
+            font-size: 25px;
+            animation: spin 2s linear infinite, float 3s ease-in-out infinite;
+            z-index: 10001;
+            cursor: pointer;
+        }
+        
+        @keyframes spin {
+            from { transform: rotateY(0deg); }
+            to { transform: rotateY(360deg); }
+        }
+        
+        @keyframes float {
+            0%, 100% { transform: translateY(0px); }
+            50% { transform: translateY(-10px); }
+        }
+        
+        .game-message {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: rgba(0,0,0,0.8);
+            color: #FFD700;
+            padding: 30px;
+            border-radius: 15px;
+            font-size: 24px;
+            text-align: center;
+            display: none;
+            z-index: 10005;
+            border: 3px solid #FFD700;
+            box-shadow: 0 0 20px rgba(255,215,0,0.5);
+        }
+        
+        .game-message.show {
+            display: block;
+            animation: slideIn 0.5s ease-out;
+        }
+        
+        @keyframes slideIn {
+            from { 
+                opacity: 0;
+                transform: translate(-50%, -50%) scale(0.5);
+            }
+            to { 
+                opacity: 1;
+                transform: translate(-50%, -50%) scale(1);
+            }
+        }
+        
+        .close-game-btn {
+            background: #FFD700;
+            color: #000;
+            border: none;
+            padding: 10px 20px;
+            margin-top: 15px;
+            border-radius: 5px;
+            font-weight: bold;
+            cursor: pointer;
+            font-size: 16px;
+            transition: all 0.3s ease;
+        }
+        
+        .close-game-btn:hover {
+            background: #FFA500;
+            transform: scale(1.05);
+        }
+        
+        .rainbow-bg {
+            animation: rainbow-background 3s linear infinite;
+        }
+        
+        @keyframes rainbow-background {
+            0% { filter: hue-rotate(0deg); }
+            100% { filter: hue-rotate(360deg); }
+        }
+    `;
+    
+    document.head.appendChild(gameStyles);
+    document.body.appendChild(gameContainer);
+    
+    // Initialize game audio
+    gameAudio = createGameAudio();
+    gameAudio.playPowerUpSound();
+    
+    // Start the game
+    startGame();
+}
+
+// Generate random coins
+function generateCoins() {
+    gameCoins = [];
+    for (let i = 0; i < totalCoins; i++) {
+        const coin = {
+            x: Math.random() * (window.innerWidth - 50),
+            y: Math.random() * (window.innerHeight - 200) + 100,
+            id: i
+        };
+        gameCoins.push(coin);
+        
+        const coinElement = document.createElement('div');
+        coinElement.className = 'coin';
+        coinElement.innerHTML = '🪙';
+        coinElement.style.left = coin.x + 'px';
+        coinElement.style.top = coin.y + 'px';
+        coinElement.setAttribute('data-coin-id', i);
+        
+        document.getElementById('game-area').appendChild(coinElement);
+    }
+}
+
+// Start the game
+function startGame() {
+    gameActive = true;
+    gameScore = 0;
+    coinCount = 0;
+    
+    // Generate coins
+    generateCoins();
+    
+    // Position player
+    const player = document.getElementById('mario-player');
+    playerPosition = { x: 50, y: window.innerHeight - 100 };
+    player.style.left = playerPosition.x + 'px';
+    player.style.top = playerPosition.y + 'px';
+    
+    // Add rainbow background effect
+    gameContainer.classList.add('rainbow-bg');
+    
+    // Game loop
+    gameInterval = setInterval(() => {
+        checkCollisions();
+        updateUI();
+    }, 50);
+    
+    // Add keyboard controls
+    document.addEventListener('keydown', handleGameInput);
+}
+
+// Handle game input
+function handleGameInput(e) {
+    if (!gameActive) return;
+    
+    const player = document.getElementById('mario-player');
+    const speed = 15;
+    
+    switch(e.key) {
+        case 'ArrowLeft':
+            e.preventDefault();
+            playerPosition.x = Math.max(0, playerPosition.x - speed);
+            break;
+        case 'ArrowRight':
+            e.preventDefault();
+            playerPosition.x = Math.min(window.innerWidth - 40, playerPosition.x + speed);
+            break;
+        case 'ArrowUp':
+            e.preventDefault();
+            playerPosition.y = Math.max(80, playerPosition.y - speed);
+            break;
+        case 'ArrowDown':
+            e.preventDefault();
+            playerPosition.y = Math.min(window.innerHeight - 40, playerPosition.y + speed);
+            break;
+    }
+    
+    player.style.left = playerPosition.x + 'px';
+    player.style.top = playerPosition.y + 'px';
+}
+
+// Check for coin collections
+function checkCollisions() {
+    const playerRect = {
+        x: playerPosition.x,
+        y: playerPosition.y,
+        width: 40,
+        height: 40
+    };
+    
+    gameCoins.forEach((coin, index) => {
+        if (coin.collected) return;
+        
+        const coinRect = {
+            x: coin.x,
+            y: coin.y,
+            width: 30,
+            height: 30
+        };
+        
+        // Simple collision detection
+        if (playerRect.x < coinRect.x + coinRect.width &&
+            playerRect.x + playerRect.width > coinRect.x &&
+            playerRect.y < coinRect.y + coinRect.height &&
+            playerRect.y + playerRect.height > coinRect.y) {
+            
+            // Collect coin
+            coin.collected = true;
+            coinCount++;
+            gameScore += 100;
+            
+            // Remove coin from DOM
+            const coinElement = document.querySelector(`[data-coin-id="${coin.id}"]`);
+            if (coinElement) {
+                coinElement.style.animation = 'none';
+                coinElement.style.transform = 'scale(1.5)';
+                coinElement.style.opacity = '0';
+                setTimeout(() => coinElement.remove(), 200);
+            }
+            
+            // Play coin sound
+            gameAudio.playCoinSound();
+            
+            // Check if all coins collected
+            if (coinCount >= totalCoins) {
+                endGame();
+            }
+        }
+    });
+}
+
+// Update game UI
+function updateUI() {
+    document.getElementById('game-score').textContent = gameScore;
+    document.getElementById('coins-collected').textContent = coinCount;
+}
+
+// End game and show results
+function endGame() {
+    gameActive = false;
+    clearInterval(gameInterval);
+    document.removeEventListener('keydown', handleGameInput);
+    
+    // Save score to localStorage for rankings
+    saveScore(gameScore);
+    
+    const gameMessage = document.getElementById('game-message');
+    const rankings = getTopScores();
+    
+    gameMessage.innerHTML = `
+        <h2>🎉 Congratulations! 🎉</h2>
+        <p>You collected all ${totalCoins} coins!</p>
+        <p><strong>Your Score: ${gameScore}</strong></p>
+        <div style="margin: 20px 0;">
+            <h3>🏆 Top Scores</h3>
+            ${rankings.map((score, index) => 
+                `<div style="margin: 5px 0; ${score === gameScore ? 'color: #FFD700; font-weight: bold;' : ''}">${index + 1}. ${score} points</div>`
+            ).join('')}
+        </div>
+        <p style="color: #FFD700; font-size: 18px; margin: 20px 0;">
+            <strong>Tell Ali about your score!</strong><br>
+            <small>Contact him through the portfolio form 📧</small>
+        </p>
+        <button class="close-game-btn" onclick="closeGame()">Return to Portfolio</button>
+    `;
+    
+    gameMessage.classList.add('show');
+}
+
+// Save score to localStorage
+function saveScore(score) {
+    let scores = JSON.parse(localStorage.getItem('marioGameScores') || '[]');
+    scores.push(score);
+    scores.sort((a, b) => b - a); // Sort descending
+    scores = scores.slice(0, 10); // Keep top 10
+    localStorage.setItem('marioGameScores', JSON.stringify(scores));
+}
+
+// Get top scores
+function getTopScores() {
+    return JSON.parse(localStorage.getItem('marioGameScores') || '[]').slice(0, 5);
+}
+
+// Close game and return to portfolio
+function closeGame() {
+    if (gameContainer) {
+        gameContainer.remove();
+        gameContainer = null;
+    }
+    
+    // Remove event listeners
+    document.removeEventListener('keydown', handleGameInput);
+    if (gameInterval) {
+        clearInterval(gameInterval);
+        gameInterval = null;
+    }
+    
+    // Reset variables
+    gameActive = false;
+    gameScore = 0;
+    gameCoins = [];
+    coinCount = 0;
+    
+    // Show return notification
+    showNotification('🎮 Thanks for playing! Don\'t forget to tell Ali about your score!', 'success');
+}
+
+// Make closeGame global for button onclick
+window.closeGame = closeGame;
+
+// Konami code listener
 document.addEventListener('keydown', (e) => {
+    if (gameActive) return; // Don't trigger if game is already active
+    
     if (e.keyCode === konamiCode[konamiIndex]) {
         konamiIndex++;
         if (konamiIndex === konamiCode.length) {
             // Easter egg activated!
-            document.body.style.animation = 'rainbow 2s infinite';
-            showNotification('🎉 Konami Code activated! You found the easter egg!', 'success');
-            
-            // Add rainbow animation
-            const rainbowStyle = document.createElement('style');
-            rainbowStyle.textContent = `
-                @keyframes rainbow {
-                    0% { filter: hue-rotate(0deg); }
-                    100% { filter: hue-rotate(360deg); }
-                }
-            `;
-            document.head.appendChild(rainbowStyle);
-            
-            // Remove after 5 seconds
+            showNotification('🎉 Konami Code activated! Starting Mario Game!', 'success');
             setTimeout(() => {
-                document.body.style.animation = '';
-                rainbowStyle.remove();
-            }, 5000);
-            
+                createMarioGame();
+            }, 1000);
             konamiIndex = 0;
         }
     } else {

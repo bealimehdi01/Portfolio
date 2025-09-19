@@ -129,16 +129,34 @@ particlesJS('particles-js', {
 
 ## 📧 Contact Form
 
-The contact form includes:
+The contact form is now **fully functional** and includes:
 - Client-side validation
 - Floating labels
 - Success/error notifications
 - Responsive design
+- **EmailJS integration for sending emails**
 
-**Note**: To make the form functional, integrate with:
+### 🔧 EmailJS Setup (Required for contact form)
+
+The contact form uses [EmailJS](https://www.emailjs.com/) to send emails directly from the browser. 
+
+**Quick Setup:** Follow the detailed guide in [SETUP-EMAILJS.md](SETUP-EMAILJS.md)
+
+**Summary:**
+1. Create a free EmailJS account at [emailjs.com](https://www.emailjs.com/)
+2. Set up an email service and template
+3. Replace the placeholder credentials in `script.js`:
+   ```javascript
+   const EMAILJS_PUBLIC_KEY = 'your_actual_public_key';
+   const EMAILJS_SERVICE_ID = 'your_actual_service_id';  
+   const EMAILJS_TEMPLATE_ID = 'your_actual_template_id';
+   ```
+
+### 📧 Alternative Solutions
+
+If you prefer other solutions, you can also integrate with:
 - [Formspree](https://formspree.io/)
 - [Netlify Forms](https://www.netlify.com/products/forms/)
-- [EmailJS](https://www.emailjs.com/)
 
 ## 🎮 Easter Eggs
 
