@@ -1,3 +1,8 @@
+// EmailJS Configuration - Replace with your actual values
+const EMAILJS_PUBLIC_KEY = 'YOUR_EMAILJS_PUBLIC_KEY';
+const EMAILJS_SERVICE_ID = 'YOUR_EMAILJS_SERVICE_ID';  
+const EMAILJS_TEMPLATE_ID = 'YOUR_EMAILJS_TEMPLATE_ID';
+
 // Theme Toggle Functionality
 const themeToggle = document.querySelector('.theme-toggle');
 const body = document.body;
@@ -318,21 +323,53 @@ window.addEventListener('scroll', () => {
 // Contact Form Handling
 const contactForm = document.getElementById('contact-form');
 
-contactForm.addEventListener('submit', (e) => {
+contactForm.addEventListener('submit', async (e) => {
     e.preventDefault();
+    
+    // Check if EmailJS is configured
+    if (EMAILJS_PUBLIC_KEY === 'YOUR_EMAILJS_PUBLIC_KEY' || 
+        EMAILJS_SERVICE_ID === 'YOUR_EMAILJS_SERVICE_ID' || 
+        EMAILJS_TEMPLATE_ID === 'YOUR_EMAILJS_TEMPLATE_ID') {
+        showNotification('EmailJS is not configured. Please check SETUP-EMAILJS.md for setup instructions.', 'error');
+        return;
+    }
+    
+    // Check if EmailJS is loaded
+    if (typeof emailjs === 'undefined') {
+        showNotification('Email service is not available. Please try again later.', 'error');
+        return;
+    }
     
     // Get form data
     const formData = new FormData(contactForm);
-    const formObject = {};
-    formData.forEach((value, key) => {
-        formObject[key] = value;
-    });
+    const templateParams = {
+        from_name: formData.get('name'),
+        from_email: formData.get('email'),
+        subject: formData.get('subject'),
+        message: formData.get('message'),
+        to_name: 'Ali Mehdi Sayyed'
+    };
     
-    // Show success message (in a real application, you would send this to a server)
-    showNotification('Thank you for your message! I\'ll get back to you soon.', 'success');
+    // Show sending message
+    const submitButton = contactForm.querySelector('button[type="submit"]');
+    const originalButtonText = submitButton.innerHTML;
+    submitButton.innerHTML = '<span>Sending...</span><i class="fas fa-spinner fa-spin"></i>';
+    submitButton.disabled = true;
     
-    // Reset form
-    contactForm.reset();
+    try {
+        // Send email using EmailJS
+        await emailjs.send(EMAILJS_SERVICE_ID, EMAILJS_TEMPLATE_ID, templateParams, EMAILJS_PUBLIC_KEY);
+        
+        showNotification('Thank you for your message! I\'ll get back to you soon.', 'success');
+        contactForm.reset();
+    } catch (error) {
+        console.error('EmailJS Error:', error);
+        showNotification('Sorry, there was an error sending your message. Please try again later.', 'error');
+    } finally {
+        // Restore button state
+        submitButton.innerHTML = originalButtonText;
+        submitButton.disabled = false;
+    }
 });
 
 // Notification System
