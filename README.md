@@ -138,26 +138,14 @@ The contact form is now **fully functional** and includes:
 
 ### 🔧 EmailJS Setup (Required for contact form)
 
-The contact form uses [EmailJS](https://www.emailjs.com/) to send emails directly from the browser. To make it work:
+The contact form uses [EmailJS](https://www.emailjs.com/) to send emails directly from the browser. 
 
-1. **Create a free EmailJS account** at [emailjs.com](https://www.emailjs.com/)
+**Quick Setup:** Follow the detailed guide in [SETUP-EMAILJS.md](SETUP-EMAILJS.md)
 
-2. **Set up an email service:**
-   - Go to Email Services and connect Gmail, Outlook, or any other email provider
-   - Note down your Service ID
-
-3. **Create an email template:**
-   - Go to Email Templates and create a new template
-   - Use these template variables: `{{from_name}}`, `{{from_email}}`, `{{subject}}`, `{{message}}`, `{{to_name}}`
-   - Note down your Template ID
-
-4. **Get your Public Key:**
-   - Go to Account → API Keys
-   - Copy your Public Key
-
-5. **Configure the portfolio:**
-   - Open `script.js`
-   - Replace the placeholder values at the top:
+**Summary:**
+1. Create a free EmailJS account at [emailjs.com](https://www.emailjs.com/)
+2. Set up an email service and template
+3. Replace the placeholder credentials in `script.js`:
    ```javascript
    const EMAILJS_PUBLIC_KEY = 'your_actual_public_key';
    const EMAILJS_SERVICE_ID = 'your_actual_service_id';  
