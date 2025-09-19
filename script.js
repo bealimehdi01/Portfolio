@@ -548,11 +548,18 @@ let gameAudio = null;
 let gameInterval = null;
 let coinCount = 0;
 const totalCoins = 15;
+let currentGameMode = 'collect'; // 'collect' or 'snake'
+let snakeBody = [];
+let foodPosition = { x: 0, y: 0 };
+let snakeDirection = { x: 20, y: 0 };
+let snakeGameSpeed = 150;
 
 // Create game audio context
 function createGameAudio() {
     // Create a simple Mario-style power-up sound using Web Audio API
     const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+    let backgroundMusic = null;
+    let backgroundGainNode = null;
     
     function playPowerUpSound() {
         const oscillator = audioContext.createOscillator();
@@ -601,7 +608,81 @@ function createGameAudio() {
         oscillator.stop(audioContext.currentTime + 0.2);
     }
     
-    return { playPowerUpSound, playCoinSound };
+    function playStarPowerMusic() {
+        if (backgroundMusic) {
+            stopBackgroundMusic();
+        }
+        
+        backgroundMusic = audioContext.createOscillator();
+        backgroundGainNode = audioContext.createGain();
+        
+        backgroundMusic.connect(backgroundGainNode);
+        backgroundGainNode.connect(audioContext.destination);
+        
+        // Mario Star Power melody - simplified version
+        const starPowerNotes = [
+            659.25, 659.25, 659.25, 523.25, 659.25, 783.99, 392.00,
+            523.25, 392.00, 329.63, 440.00, 493.88, 466.16, 440.00
+        ];
+        
+        let noteIndex = 0;
+        const noteDuration = 0.25; // Quarter second per note
+        
+        backgroundGainNode.gain.setValueAtTime(0.15, audioContext.currentTime);
+        
+        function playNextNote() {
+            if (backgroundMusic && noteIndex < starPowerNotes.length) {
+                backgroundMusic.frequency.setValueAtTime(
+                    starPowerNotes[noteIndex], 
+                    audioContext.currentTime
+                );
+                noteIndex++;
+                
+                setTimeout(() => {
+                    if (noteIndex >= starPowerNotes.length) {
+                        noteIndex = 0; // Loop the melody
+                    }
+                    playNextNote();
+                }, noteDuration * 1000);
+            }
+        }
+        
+        backgroundMusic.start(audioContext.currentTime);
+        playNextNote();
+    }
+    
+    function stopBackgroundMusic() {
+        if (backgroundMusic) {
+            backgroundGainNode.gain.exponentialRampToValueAtTime(0.001, audioContext.currentTime + 0.5);
+            backgroundMusic.stop(audioContext.currentTime + 0.5);
+            backgroundMusic = null;
+            backgroundGainNode = null;
+        }
+    }
+    
+    function playJumpSound() {
+        const oscillator = audioContext.createOscillator();
+        const gainNode = audioContext.createGain();
+        
+        oscillator.connect(gainNode);
+        gainNode.connect(audioContext.destination);
+        
+        oscillator.frequency.setValueAtTime(400, audioContext.currentTime);
+        oscillator.frequency.exponentialRampToValueAtTime(600, audioContext.currentTime + 0.1);
+        gainNode.gain.setValueAtTime(0.1, audioContext.currentTime);
+        gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.1);
+        
+        oscillator.start(audioContext.currentTime);
+        oscillator.stop(audioContext.currentTime + 0.1);
+    }
+    
+    return { 
+        playPowerUpSound, 
+        playCoinSound, 
+        playStarPowerMusic, 
+        stopBackgroundMusic,
+        playJumpSound 
+    };
 }
 
 // Create the Mario-style game
@@ -611,11 +692,14 @@ function createMarioGame() {
     gameContainer.innerHTML = `
         <div class="game-ui">
             <div class="score">Score: <span id="game-score">0</span></div>
-            <div class="coins-left">Coins: <span id="coins-collected">0</span>/${totalCoins}</div>
-            <div class="instructions">Use ARROW KEYS to move and collect coins!</div>
+            <div class="coins-left">Items: <span id="coins-collected">0</span>/${totalCoins}</div>
+            <div class="game-controls">
+                <button id="switch-game" class="game-btn">Switch to Snake Game</button>
+            </div>
+            <div class="instructions">Use ARROW KEYS to move and collect items!</div>
         </div>
         <div class="game-area" id="game-area">
-            <div class="player" id="mario-player">🍕</div>
+            <div class="player" id="mario-player">🟡</div>
         </div>
         <div class="game-message" id="game-message"></div>
     `;
@@ -648,6 +732,24 @@ function createMarioGame() {
             font-size: 18px;
             text-shadow: 2px 2px 4px rgba(0,0,0,0.7);
             z-index: 10001;
+            flex-wrap: wrap;
+        }
+        
+        .game-btn {
+            background: #FFD700;
+            color: #000;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 20px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            font-size: 14px;
+        }
+        
+        .game-btn:hover {
+            background: #FFA500;
+            transform: scale(1.05);
         }
         
         .instructions {
@@ -668,16 +770,6 @@ function createMarioGame() {
             overflow: hidden;
         }
         
-        .player {
-            position: absolute;
-            width: 40px;
-            height: 40px;
-            font-size: 30px;
-            transition: all 0.1s ease;
-            z-index: 10002;
-            filter: drop-shadow(2px 2px 4px rgba(0,0,0,0.5));
-        }
-        
         .coin {
             position: absolute;
             width: 30px;
@@ -686,6 +778,48 @@ function createMarioGame() {
             animation: spin 2s linear infinite, float 3s ease-in-out infinite;
             z-index: 10001;
             cursor: pointer;
+            transition: all 0.2s ease;
+        }
+        
+        .coin:hover {
+            transform: scale(1.2);
+        }
+        
+        .special-item {
+            font-size: 30px;
+            animation: spin 1.5s linear infinite, float 2s ease-in-out infinite, sparkle 2s ease-in-out infinite;
+        }
+        
+        @keyframes sparkle {
+            0%, 100% { filter: brightness(1) drop-shadow(0 0 5px gold); }
+            50% { filter: brightness(1.5) drop-shadow(0 0 15px gold); }
+        }
+        
+        .player {
+            position: absolute;
+            width: 40px;
+            height: 40px;
+            font-size: 30px;
+            transition: all 0.08s ease;
+            z-index: 10002;
+            filter: drop-shadow(2px 2px 4px rgba(0,0,0,0.5));
+        }
+        
+        .snake-segment {
+            position: absolute;
+            width: 20px;
+            height: 20px;
+            font-size: 16px;
+            z-index: 10002;
+        }
+        
+        .snake-food {
+            position: absolute;
+            width: 20px;
+            height: 20px;
+            font-size: 16px;
+            z-index: 10001;
+            animation: pulse 1s infinite;
         }
         
         @keyframes spin {
@@ -766,27 +900,250 @@ function createMarioGame() {
     gameAudio = createGameAudio();
     gameAudio.playPowerUpSound();
     
+    // Start background music after a short delay
+    setTimeout(() => {
+        gameAudio.playStarPowerMusic();
+    }, 1000);
+    
+    // Add event listener for game switch button
+    document.getElementById('switch-game').addEventListener('click', () => {
+        switchGameMode();
+    });
+    
     // Start the game
     startGame();
 }
 
-// Generate random coins
+// Switch between game modes
+function switchGameMode() {
+    if (currentGameMode === 'collect') {
+        currentGameMode = 'snake';
+        document.getElementById('switch-game').textContent = 'Switch to Collect Game';
+        startSnakeGame();
+    } else {
+        currentGameMode = 'collect';
+        document.getElementById('switch-game').textContent = 'Switch to Snake Game';
+        startCollectGame();
+    }
+}
+
+// Start Snake Game
+function startSnakeGame() {
+    // Clear existing game
+    const gameArea = document.getElementById('game-area');
+    gameArea.innerHTML = '';
+    
+    // Initialize snake
+    snakeBody = [
+        { x: 200, y: 200 },
+        { x: 180, y: 200 },
+        { x: 160, y: 200 }
+    ];
+    snakeDirection = { x: 20, y: 0 };
+    
+    // Create snake segments
+    snakeBody.forEach((segment, index) => {
+        const snakeSegment = document.createElement('div');
+        snakeSegment.className = 'snake-segment';
+        snakeSegment.style.left = segment.x + 'px';
+        snakeSegment.style.top = segment.y + 'px';
+        snakeSegment.innerHTML = index === 0 ? '🟡' : '🟢';
+        gameArea.appendChild(snakeSegment);
+    });
+    
+    // Generate food
+    generateSnakeFood();
+    
+    // Update instructions
+    document.querySelector('.instructions').textContent = 'Snake Game: Eat food to grow! Don\'t hit walls or yourself!';
+    
+    // Start snake movement
+    if (gameInterval) clearInterval(gameInterval);
+    gameInterval = setInterval(moveSnake, snakeGameSpeed);
+    
+    // Update event listener
+    document.removeEventListener('keydown', handleGameInput);
+    document.addEventListener('keydown', handleSnakeInput);
+}
+
+// Start Collect Game
+function startCollectGame() {
+    // Clear existing game
+    const gameArea = document.getElementById('game-area');
+    gameArea.innerHTML = '';
+    
+    // Create player
+    const player = document.createElement('div');
+    player.className = 'player';
+    player.id = 'mario-player';
+    player.innerHTML = '🟡';
+    gameArea.appendChild(player);
+    
+    // Generate collectibles
+    generateCoins();
+    
+    // Update instructions
+    document.querySelector('.instructions').textContent = 'Use ARROW KEYS to move and collect items!';
+    
+    // Position player
+    playerPosition = { x: 50, y: window.innerHeight - 100 };
+    player.style.left = playerPosition.x + 'px';
+    player.style.top = playerPosition.y + 'px';
+    
+    // Clear snake interval
+    if (gameInterval) clearInterval(gameInterval);
+    
+    // Update event listener
+    document.removeEventListener('keydown', handleSnakeInput);
+    document.addEventListener('keydown', handleGameInput);
+    
+    // Start collision checking
+    gameInterval = setInterval(checkCollisions, 50);
+}
+
+// Generate food for snake
+function generateSnakeFood() {
+    const gameArea = document.getElementById('game-area');
+    const existing = gameArea.querySelector('.snake-food');
+    if (existing) existing.remove();
+    
+    foodPosition = {
+        x: Math.floor(Math.random() * (window.innerWidth - 60) / 20) * 20,
+        y: Math.floor(Math.random() * (window.innerHeight - 160) / 20) * 20 + 100
+    };
+    
+    const food = document.createElement('div');
+    food.className = 'snake-food';
+    food.style.left = foodPosition.x + 'px';
+    food.style.top = foodPosition.y + 'px';
+    food.innerHTML = '🍎';
+    gameArea.appendChild(food);
+}
+
+// Move snake
+function moveSnake() {
+    const head = { ...snakeBody[0] };
+    head.x += snakeDirection.x;
+    head.y += snakeDirection.y;
+    
+    // Check wall collision
+    if (head.x < 0 || head.x >= window.innerWidth - 20 || 
+        head.y < 80 || head.y >= window.innerHeight - 20) {
+        gameOver();
+        return;
+    }
+    
+    // Check self collision
+    if (snakeBody.some(segment => segment.x === head.x && segment.y === head.y)) {
+        gameOver();
+        return;
+    }
+    
+    snakeBody.unshift(head);
+    
+    // Check food collision
+    if (head.x === foodPosition.x && head.y === foodPosition.y) {
+        gameScore += 10;
+        updateUI();
+        gameAudio.playCoinSound();
+        generateSnakeFood();
+    } else {
+        snakeBody.pop();
+    }
+    
+    // Update visual
+    updateSnakeVisual();
+}
+
+// Update snake visual
+function updateSnakeVisual() {
+    const gameArea = document.getElementById('game-area');
+    const segments = gameArea.querySelectorAll('.snake-segment');
+    segments.forEach(segment => segment.remove());
+    
+    snakeBody.forEach((segment, index) => {
+        const snakeSegment = document.createElement('div');
+        snakeSegment.className = 'snake-segment';
+        snakeSegment.style.left = segment.x + 'px';
+        snakeSegment.style.top = segment.y + 'px';
+        snakeSegment.innerHTML = index === 0 ? '🟡' : '🟢';
+        gameArea.appendChild(snakeSegment);
+    });
+}
+
+// Handle snake input
+function handleSnakeInput(e) {
+    if (!gameActive) return;
+    
+    switch(e.key) {
+        case 'ArrowLeft':
+            e.preventDefault();
+            if (snakeDirection.x === 0) {
+                snakeDirection = { x: -20, y: 0 };
+            }
+            break;
+        case 'ArrowRight':
+            e.preventDefault();
+            if (snakeDirection.x === 0) {
+                snakeDirection = { x: 20, y: 0 };
+            }
+            break;
+        case 'ArrowUp':
+            e.preventDefault();
+            if (snakeDirection.y === 0) {
+                snakeDirection = { x: 0, y: -20 };
+            }
+            break;
+        case 'ArrowDown':
+            e.preventDefault();
+            if (snakeDirection.y === 0) {
+                snakeDirection = { x: 0, y: 20 };
+            }
+            break;
+    }
+}
+
+// Game over for snake
+function gameOver() {
+    gameActive = false;
+    clearInterval(gameInterval);
+    document.removeEventListener('keydown', handleSnakeInput);
+    
+    const gameMessage = document.getElementById('game-message');
+    gameMessage.innerHTML = `
+        <h2>🐍 Game Over! 🐍</h2>
+        <p><strong>Your Score: ${gameScore}</strong></p>
+        <p>Snake Length: ${snakeBody.length}</p>
+        <button class="close-game-btn" onclick="closeGame()">Return to Portfolio</button>
+    `;
+    gameMessage.classList.add('show');
+}
+
+// Generate random collectibles
 function generateCoins() {
     gameCoins = [];
+    const collectibles = ['💎', '⭐', '🍒', '🍓', '🥇', '👑', '💝', '🎁', '🌟', '💰'];
+    
     for (let i = 0; i < totalCoins; i++) {
         const coin = {
             x: Math.random() * (window.innerWidth - 50),
             y: Math.random() * (window.innerHeight - 200) + 100,
-            id: i
+            id: i,
+            type: collectibles[Math.floor(Math.random() * collectibles.length)]
         };
         gameCoins.push(coin);
         
         const coinElement = document.createElement('div');
         coinElement.className = 'coin';
-        coinElement.innerHTML = '🪙';
+        coinElement.innerHTML = coin.type;
         coinElement.style.left = coin.x + 'px';
         coinElement.style.top = coin.y + 'px';
         coinElement.setAttribute('data-coin-id', i);
+        
+        // Add special effects for certain collectibles
+        if (coin.type === '⭐' || coin.type === '💎') {
+            coinElement.classList.add('special-item');
+        }
         
         document.getElementById('game-area').appendChild(coinElement);
     }
@@ -798,26 +1155,12 @@ function startGame() {
     gameScore = 0;
     coinCount = 0;
     
-    // Generate coins
-    generateCoins();
-    
-    // Position player
-    const player = document.getElementById('mario-player');
-    playerPosition = { x: 50, y: window.innerHeight - 100 };
-    player.style.left = playerPosition.x + 'px';
-    player.style.top = playerPosition.y + 'px';
+    // Start with collect game by default
+    currentGameMode = 'collect';
+    startCollectGame();
     
     // Add rainbow background effect
     gameContainer.classList.add('rainbow-bg');
-    
-    // Game loop
-    gameInterval = setInterval(() => {
-        checkCollisions();
-        updateUI();
-    }, 50);
-    
-    // Add keyboard controls
-    document.addEventListener('keydown', handleGameInput);
 }
 
 // Handle game input
@@ -825,29 +1168,39 @@ function handleGameInput(e) {
     if (!gameActive) return;
     
     const player = document.getElementById('mario-player');
-    const speed = 15;
+    const speed = 20; // Increased speed for smoother movement
     
     switch(e.key) {
         case 'ArrowLeft':
             e.preventDefault();
             playerPosition.x = Math.max(0, playerPosition.x - speed);
+            gameAudio.playJumpSound();
             break;
         case 'ArrowRight':
             e.preventDefault();
             playerPosition.x = Math.min(window.innerWidth - 40, playerPosition.x + speed);
+            gameAudio.playJumpSound();
             break;
         case 'ArrowUp':
             e.preventDefault();
             playerPosition.y = Math.max(80, playerPosition.y - speed);
+            gameAudio.playJumpSound();
             break;
         case 'ArrowDown':
             e.preventDefault();
             playerPosition.y = Math.min(window.innerHeight - 40, playerPosition.y + speed);
+            gameAudio.playJumpSound();
             break;
     }
     
     player.style.left = playerPosition.x + 'px';
     player.style.top = playerPosition.y + 'px';
+    
+    // Add a brief scaling effect for movement feedback
+    player.style.transform = 'scale(1.1)';
+    setTimeout(() => {
+        player.style.transform = 'scale(1)';
+    }, 100);
 }
 
 // Check for coin collections
@@ -957,6 +1310,11 @@ function closeGame() {
     if (gameContainer) {
         gameContainer.remove();
         gameContainer = null;
+    }
+    
+    // Stop background music
+    if (gameAudio) {
+        gameAudio.stopBackgroundMusic();
     }
     
     // Remove event listeners
