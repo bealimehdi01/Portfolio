@@ -1,3 +1,16 @@
+// EmailJS Configuration
+// Replace these with your actual EmailJS credentials
+const EMAILJS_PUBLIC_KEY = 'YOUR_EMAILJS_PUBLIC_KEY'; // Replace with your public key
+const EMAILJS_SERVICE_ID = 'YOUR_EMAILJS_SERVICE_ID'; // Replace with your service ID  
+const EMAILJS_TEMPLATE_ID = 'YOUR_EMAILJS_TEMPLATE_ID'; // Replace with your template ID
+
+// Initialize EmailJS
+(function() {
+    if (typeof emailjs !== 'undefined' && EMAILJS_PUBLIC_KEY !== 'YOUR_EMAILJS_PUBLIC_KEY') {
+        emailjs.init(EMAILJS_PUBLIC_KEY);
+    }
+})();
+
 // Theme Toggle Functionality
 const themeToggle = document.querySelector('.theme-toggle');
 const body = document.body;
@@ -317,22 +330,60 @@ window.addEventListener('scroll', () => {
 
 // Contact Form Handling
 const contactForm = document.getElementById('contact-form');
+const submitBtn = contactForm.querySelector('button[type="submit"]');
+const submitBtnText = submitBtn.querySelector('span');
+const submitBtnIcon = submitBtn.querySelector('i');
 
-contactForm.addEventListener('submit', (e) => {
+contactForm.addEventListener('submit', async (e) => {
     e.preventDefault();
     
-    // Get form data
-    const formData = new FormData(contactForm);
-    const formObject = {};
-    formData.forEach((value, key) => {
-        formObject[key] = value;
-    });
+    // Check if EmailJS is loaded and configured
+    if (typeof emailjs === 'undefined') {
+        showNotification('Email service is not available. Please try again later or contact me directly.', 'error');
+        return;
+    }
     
-    // Show success message (in a real application, you would send this to a server)
-    showNotification('Thank you for your message! I\'ll get back to you soon.', 'success');
+    if (EMAILJS_PUBLIC_KEY === 'YOUR_EMAILJS_PUBLIC_KEY' || 
+        EMAILJS_SERVICE_ID === 'YOUR_EMAILJS_SERVICE_ID' || 
+        EMAILJS_TEMPLATE_ID === 'YOUR_EMAILJS_TEMPLATE_ID') {
+        showNotification('EmailJS is not configured. Please set up your EmailJS credentials.', 'error');
+        return;
+    }
     
-    // Reset form
-    contactForm.reset();
+    // Show loading state
+    submitBtn.disabled = true;
+    submitBtnText.textContent = 'Sending...';
+    submitBtnIcon.className = 'fas fa-spinner fa-spin';
+    
+    try {
+        // Get form data
+        const formData = new FormData(contactForm);
+        const templateParams = {
+            from_name: formData.get('name'),
+            from_email: formData.get('email'),
+            subject: formData.get('subject'),
+            message: formData.get('message'),
+            to_name: 'Ali Mehdi Sayyed', // Can be customized
+        };
+        
+        // Send email using EmailJS
+        await emailjs.send(EMAILJS_SERVICE_ID, EMAILJS_TEMPLATE_ID, templateParams);
+        
+        // Show success message
+        showNotification('Thank you for your message! I\'ll get back to you soon.', 'success');
+        
+        // Reset form
+        contactForm.reset();
+        
+    } catch (error) {
+        console.error('Failed to send email:', error);
+        showNotification('Failed to send message. Please try again or contact me directly.', 'error');
+    } finally {
+        // Reset button state
+        submitBtn.disabled = false;
+        submitBtnText.textContent = 'Send Message';
+        submitBtnIcon.className = 'fas fa-paper-plane';
+    }
 });
 
 // Notification System
