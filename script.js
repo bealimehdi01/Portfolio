@@ -1,7 +1,7 @@
-// EmailJS Configuration - Replace with your actual values
-const EMAILJS_PUBLIC_KEY = 'YOUR_EMAILJS_PUBLIC_KEY';
-const EMAILJS_SERVICE_ID = 'YOUR_EMAILJS_SERVICE_ID';  
-const EMAILJS_TEMPLATE_ID = 'YOUR_EMAILJS_TEMPLATE_ID';
+// EmailJS Configuration - Live credentials
+const EMAILJS_PUBLIC_KEY = 'f1_-zhshNpK1QBwCS';
+const EMAILJS_SERVICE_ID = 'service_04s34b8';  
+const EMAILJS_TEMPLATE_ID = 'template_ez6fmiw';
 
 // Theme Toggle Functionality
 const themeToggle = document.querySelector('.theme-toggle');
