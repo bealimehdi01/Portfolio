@@ -161,7 +161,7 @@ This project is open source and available under the [MIT License](LICENSE).
 If you have any questions or need help customizing the portfolio, feel free to:
 
 - Open an issue on GitHub
-- Contact via email: ali.mehdi.sayyed@gmail.com
+- Contact via email: bealimehdi@gmail.com
 - Connect on social media
 
 ---
