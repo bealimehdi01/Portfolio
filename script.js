@@ -531,25 +531,8 @@ document.addEventListener('keydown', (e) => {
         konamiIndex++;
         if (konamiIndex === konamiCode.length) {
             // Easter egg activated!
-            document.body.style.animation = 'rainbow 2s infinite';
-            showNotification('🎉 Konami Code activated! You found the easter egg!', 'success');
-            
-            // Add rainbow animation
-            const rainbowStyle = document.createElement('style');
-            rainbowStyle.textContent = `
-                @keyframes rainbow {
-                    0% { filter: hue-rotate(0deg); }
-                    100% { filter: hue-rotate(360deg); }
-                }
-            `;
-            document.head.appendChild(rainbowStyle);
-            
-            // Remove after 5 seconds
-            setTimeout(() => {
-                document.body.style.animation = '';
-                rainbowStyle.remove();
-            }, 5000);
-            
+            showNotification('🎉 Konami Code activated! Starting the Portfolio Game!', 'success');
+            startPortfolioGame();
             konamiIndex = 0;
         }
     } else {
@@ -576,3 +559,387 @@ const debouncedScrollHandler = debounce(() => {
 }, 16); // 60fps
 
 window.addEventListener('scroll', debouncedScrollHandler);
+
+// Portfolio Game - Collect Skills Game
+let gameState = {
+    active: false,
+    paused: false,
+    muted: false,
+    score: 0,
+    level: 1,
+    player: { x: 50, y: 50, size: 30 },
+    skills: [],
+    gameLoop: null,
+    canvas: null,
+    ctx: null,
+    keys: {}
+};
+
+function startPortfolioGame() {
+    if (gameState.active) return;
+    
+    gameState.active = true;
+    gameState.paused = false;
+    gameState.score = 0;
+    gameState.level = 1;
+    
+    createGameCanvas();
+    createGameControls();
+    initializeGame();
+    startGameLoop();
+}
+
+function createGameCanvas() {
+    // Create game container
+    const gameContainer = document.createElement('div');
+    gameContainer.id = 'portfolio-game';
+    gameContainer.style.cssText = `
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: rgba(0, 0, 0, 0.9);
+        z-index: 10000;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+    `;
+    
+    // Create canvas
+    const canvas = document.createElement('canvas');
+    canvas.width = 800;
+    canvas.height = 600;
+    canvas.style.cssText = `
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        border: 3px solid #fff;
+        border-radius: 10px;
+        box-shadow: 0 0 30px rgba(0, 0, 0, 0.5);
+    `;
+    
+    gameState.canvas = canvas;
+    gameState.ctx = canvas.getContext('2d');
+    
+    // Game title
+    const title = document.createElement('h2');
+    title.textContent = 'Portfolio Skills Collector';
+    title.style.cssText = `
+        color: white;
+        font-family: 'Poppins', sans-serif;
+        font-size: 2rem;
+        margin-bottom: 1rem;
+        text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.5);
+    `;
+    
+    gameContainer.appendChild(title);
+    gameContainer.appendChild(canvas);
+    document.body.appendChild(gameContainer);
+}
+
+function createGameControls() {
+    const controlsContainer = document.createElement('div');
+    controlsContainer.style.cssText = `
+        display: flex;
+        gap: 1rem;
+        margin-top: 1rem;
+        align-items: center;
+    `;
+    
+    // Score display
+    const scoreDisplay = document.createElement('div');
+    scoreDisplay.id = 'game-score-display';
+    scoreDisplay.style.cssText = `
+        color: white;
+        font-family: 'Poppins', sans-serif;
+        font-size: 1.2rem;
+        margin-right: 2rem;
+    `;
+    scoreDisplay.textContent = 'Score: 0 | Level: 1';
+    
+    // Pause button
+    const pauseBtn = document.createElement('button');
+    pauseBtn.innerHTML = '⏸️ Pause';
+    pauseBtn.style.cssText = `
+        background: #4CAF50;
+        color: white;
+        border: none;
+        padding: 0.5rem 1rem;
+        border-radius: 5px;
+        font-family: 'Poppins', sans-serif;
+        cursor: pointer;
+        transition: background 0.3s;
+    `;
+    pauseBtn.onclick = toggleGamePause;
+    
+    // Mute button
+    const muteBtn = document.createElement('button');
+    muteBtn.id = 'game-mute-btn';
+    muteBtn.innerHTML = '🔊 Sound';
+    muteBtn.style.cssText = `
+        background: #2196F3;
+        color: white;
+        border: none;
+        padding: 0.5rem 1rem;
+        border-radius: 5px;
+        font-family: 'Poppins', sans-serif;
+        cursor: pointer;
+        transition: background 0.3s;
+    `;
+    muteBtn.onclick = toggleGameMute;
+    
+    // Close button
+    const closeBtn = document.createElement('button');
+    closeBtn.innerHTML = '❌ Close';
+    closeBtn.style.cssText = `
+        background: #f44336;
+        color: white;
+        border: none;
+        padding: 0.5rem 1rem;
+        border-radius: 5px;
+        font-family: 'Poppins', sans-serif;
+        cursor: pointer;
+        transition: background 0.3s;
+    `;
+    closeBtn.onclick = closePortfolioGame;
+    
+    // Instructions
+    const instructions = document.createElement('div');
+    instructions.style.cssText = `
+        color: white;
+        font-family: 'Poppins', sans-serif;
+        text-align: center;
+        margin-top: 1rem;
+        font-size: 0.9rem;
+    `;
+    instructions.innerHTML = `
+        Use WASD or Arrow Keys to move • Collect skills to increase score • Avoid obstacles!
+    `;
+    
+    controlsContainer.appendChild(scoreDisplay);
+    controlsContainer.appendChild(pauseBtn);
+    controlsContainer.appendChild(muteBtn);
+    controlsContainer.appendChild(closeBtn);
+    
+    const gameContainer = document.getElementById('portfolio-game');
+    gameContainer.appendChild(controlsContainer);
+    gameContainer.appendChild(instructions);
+}
+
+function initializeGame() {
+    // Reset player position
+    gameState.player = { 
+        x: gameState.canvas.width / 2, 
+        y: gameState.canvas.height / 2, 
+        size: 25,
+        color: '#FFD700'
+    };
+    
+    // Initialize skills to collect
+    gameState.skills = [];
+    const skillTypes = ['⚛️', '🐍', '🔷', '☁️', '🗄️', '🐳', '🔧', '📊'];
+    
+    for (let i = 0; i < 8; i++) {
+        gameState.skills.push({
+            x: Math.random() * (gameState.canvas.width - 40) + 20,
+            y: Math.random() * (gameState.canvas.height - 40) + 20,
+            size: 20,
+            type: skillTypes[i % skillTypes.length],
+            collected: false
+        });
+    }
+    
+    // Set up keyboard listeners
+    document.addEventListener('keydown', handleGameKeyDown);
+    document.addEventListener('keyup', handleGameKeyUp);
+}
+
+function handleGameKeyDown(e) {
+    if (!gameState.active) return;
+    gameState.keys[e.key.toLowerCase()] = true;
+    
+    // Prevent default for game keys
+    if (['w', 'a', 's', 'd', 'arrowup', 'arrowdown', 'arrowleft', 'arrowright'].includes(e.key.toLowerCase())) {
+        e.preventDefault();
+    }
+}
+
+function handleGameKeyUp(e) {
+    if (!gameState.active) return;
+    gameState.keys[e.key.toLowerCase()] = false;
+}
+
+function updateGame() {
+    if (gameState.paused) return;
+    
+    // Move player
+    const speed = 5;
+    if (gameState.keys['w'] || gameState.keys['arrowup']) {
+        gameState.player.y = Math.max(gameState.player.size, gameState.player.y - speed);
+    }
+    if (gameState.keys['s'] || gameState.keys['arrowdown']) {
+        gameState.player.y = Math.min(gameState.canvas.height - gameState.player.size, gameState.player.y + speed);
+    }
+    if (gameState.keys['a'] || gameState.keys['arrowleft']) {
+        gameState.player.x = Math.max(gameState.player.size, gameState.player.x - speed);
+    }
+    if (gameState.keys['d'] || gameState.keys['arrowright']) {
+        gameState.player.x = Math.min(gameState.canvas.width - gameState.player.size, gameState.player.x + speed);
+    }
+    
+    // Check skill collection
+    gameState.skills.forEach(skill => {
+        if (!skill.collected) {
+            const distance = Math.sqrt(
+                Math.pow(gameState.player.x - skill.x, 2) + 
+                Math.pow(gameState.player.y - skill.y, 2)
+            );
+            
+            if (distance < gameState.player.size + skill.size) {
+                skill.collected = true;
+                gameState.score += 10;
+                playCollectSound();
+                
+                // Check if all skills collected
+                if (gameState.skills.every(s => s.collected)) {
+                    nextLevel();
+                }
+            }
+        }
+    });
+    
+    updateScoreDisplay();
+}
+
+function renderGame() {
+    const ctx = gameState.ctx;
+    
+    // Clear canvas
+    ctx.clearRect(0, 0, gameState.canvas.width, gameState.canvas.height);
+    
+    // Draw player
+    ctx.fillStyle = gameState.player.color;
+    ctx.beginPath();
+    ctx.arc(gameState.player.x, gameState.player.y, gameState.player.size, 0, Math.PI * 2);
+    ctx.fill();
+    
+    // Draw player emoji
+    ctx.font = '20px Arial';
+    ctx.textAlign = 'center';
+    ctx.fillText('👨‍💻', gameState.player.x, gameState.player.y + 5);
+    
+    // Draw skills
+    gameState.skills.forEach(skill => {
+        if (!skill.collected) {
+            ctx.font = '24px Arial';
+            ctx.textAlign = 'center';
+            ctx.fillText(skill.type, skill.x, skill.y + 5);
+        }
+    });
+    
+    // Draw pause overlay
+    if (gameState.paused) {
+        ctx.fillStyle = 'rgba(0, 0, 0, 0.7)';
+        ctx.fillRect(0, 0, gameState.canvas.width, gameState.canvas.height);
+        
+        ctx.fillStyle = 'white';
+        ctx.font = '48px Arial';
+        ctx.textAlign = 'center';
+        ctx.fillText('PAUSED', gameState.canvas.width / 2, gameState.canvas.height / 2);
+    }
+}
+
+function startGameLoop() {
+    gameState.gameLoop = setInterval(() => {
+        updateGame();
+        renderGame();
+    }, 1000 / 60); // 60 FPS
+}
+
+function toggleGamePause() {
+    gameState.paused = !gameState.paused;
+    const pauseBtn = document.querySelector('#portfolio-game button');
+    pauseBtn.innerHTML = gameState.paused ? '▶️ Resume' : '⏸️ Pause';
+}
+
+function toggleGameMute() {
+    gameState.muted = !gameState.muted;
+    const muteBtn = document.getElementById('game-mute-btn');
+    muteBtn.innerHTML = gameState.muted ? '🔇 Muted' : '🔊 Sound';
+}
+
+function updateScoreDisplay() {
+    const scoreDisplay = document.getElementById('game-score-display');
+    if (scoreDisplay) {
+        scoreDisplay.textContent = `Score: ${gameState.score} | Level: ${gameState.level}`;
+    }
+}
+
+function nextLevel() {
+    gameState.level++;
+    
+    // Add more skills for next level
+    const skillTypes = ['⚛️', '🐍', '🔷', '☁️', '🗄️', '🐳', '🔧', '📊', '🚀', '🎯', '🔥', '💎'];
+    const newSkillCount = Math.min(8 + gameState.level, 16);
+    
+    gameState.skills = [];
+    for (let i = 0; i < newSkillCount; i++) {
+        gameState.skills.push({
+            x: Math.random() * (gameState.canvas.width - 40) + 20,
+            y: Math.random() * (gameState.canvas.height - 40) + 20,
+            size: 20,
+            type: skillTypes[i % skillTypes.length],
+            collected: false
+        });
+    }
+    
+    showNotification(`🎉 Level ${gameState.level}! Collect all ${newSkillCount} skills!`, 'success');
+}
+
+function playCollectSound() {
+    if (gameState.muted) return;
+    
+    // Create a simple beep sound using Web Audio API
+    const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+    const oscillator = audioContext.createOscillator();
+    const gainNode = audioContext.createGain();
+    
+    oscillator.connect(gainNode);
+    gainNode.connect(audioContext.destination);
+    
+    oscillator.frequency.value = 800;
+    oscillator.type = 'sine';
+    
+    gainNode.gain.setValueAtTime(0.3, audioContext.currentTime);
+    gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.2);
+    
+    oscillator.start(audioContext.currentTime);
+    oscillator.stop(audioContext.currentTime + 0.2);
+}
+
+function closePortfolioGame() {
+    gameState.active = false;
+    gameState.paused = false;
+    
+    // Clear game loop
+    if (gameState.gameLoop) {
+        clearInterval(gameState.gameLoop);
+    }
+    
+    // Remove event listeners
+    document.removeEventListener('keydown', handleGameKeyDown);
+    document.removeEventListener('keyup', handleGameKeyUp);
+    
+    // Remove game container
+    const gameContainer = document.getElementById('portfolio-game');
+    if (gameContainer) {
+        gameContainer.remove();
+    }
+    
+    // Reset game state
+    gameState.score = 0;
+    gameState.level = 1;
+    gameState.skills = [];
+    
+    showNotification(`🎮 Game Over! Final Score: ${gameState.score}`, 'info');
+}
