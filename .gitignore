@@ -17,6 +17,9 @@ out/
 .env.test.local
 .env.production.local
 
+# EmailJS configuration (keep example file)
+emailjs-config.js
+
 # Editor directories and files
 .vscode/
 .idea/

@@ -1,0 +1,103 @@
+ALI MEHDI
+SAYYED
+Full Stack Developer
+bealimehdi@gmail.com
+8108550117
+Thane, Maharashtra, India
+www.linkedin.com/in/bealimehdi
+
+SUMMARY
+Dynamic Full Stack Developer with robust expertise in both web development
+and emerging AI technologies. With proven experience in designing scalable
+APIs and driving end-to-end development in fast-paced startup environments, I
+have crafted innovative AI solutions to streamline data extraction and enhance
+application functionality. My work includes developing advanced OCR systems
+using Python, Tesseract, and Hugging Face Transformers to convert
+unstructured data into actionable insights. Adept at integrating cloud platforms
+and automating deployment pipelines, I bring a unique blend of technical
+acumen and creative problem-solving to build secure, high-performance
+applications that drive business success.
+
+www.github.com/bealimehdi01
+
+WORK EXPERIENCE
+EDUCATION
+Master's of Computer
+Applications
+Computer Science and IT
+Jain University
+2022 - 2024
+Bengaluru
+
+Bachelor in Science
+A.E. Kalsekar College
+2018 - 2021
+Thane
+
+SKILLS
+Programming & Development:
+Python, C#, JavaScript, .NET
+(ASP.NET Web API), Node.js,
+Django, React.js, Angular,
+PostgreSQL, MongoDB
+Artificial Intelligence & Computer
+Vision - OCR & NLP: Tesseract,
+PyTesseract, Hugging Face
+Transformers, SpaCY, NLTK. Object
+Detection & Image Processing:
+YOLO, OpenCV, NumPy, Pandas.
+ChatGPT, Copilot etc.
+
+Full Stack Developer
+VBooks
+Sep 2024 - July 2025
+
+Remote
+
+Architect robust backend solutions using Python and .NET, designing
+scalable microservices for reliable, high-performance systems.
+Engineered secure RESTful APIs with Node.js, integrating diverse data
+sources and third-party services seamlessly.
+Design dynamic, responsive frontends with React and Python-driven
+integrations, ensuring intuitive user experiences and optimized
+performance. Leveraged AI Tools like ChatGPT to speed development.
+Integrate AI-based OCR services using Python, Tesseract, and PyTesseract,
+delivering accurate data extraction from scanned documents.
+Optimize system performance with Python’s asynchronous programming,
+effective caching strategies, and efficient resource management
+techniques.
+Implement CI/CD pipelines with GitHub Actions and Docker, streamlining
+deployments and ensuring rapid, stable releases.
+Collaborate in Agile teams using Python-driven solutions, conducting
+thorough code reviews and mentoring peers for continuous improvement.
+
+Full Stack Developer
+Find My Options
+Nov 2022 - Sept 2024
+
+Remote
+
+Developed and maintained a scalable full-stack application, migrating the
+frontend from Angular to React to enhance performance and user
+experience.
+Built and optimized RESTful APIs using C# and .NET, improving platform
+functionality and data processing.
+
+Backend & API Development RESTful APIs, FastAPI, Flask.
+Security & Authentication: JWT,
+OAuth, HTTPS, Cryptography
+
+Designed and managed a PostgreSQL database to store user and vehicle
+listing data efficiently.
+
+Development Workflow & Tools:
+Git, GitHub, Scrum, Jira
+
+Implemented an AI-powered object detection system using YOLO (You Only
+Look Once), OpenCV, and TensorFlow to identify the positioning of car
+images.
+
+Led the integration of CI/CD pipelines using GitHub Actions, enhancing
+deployments and Used AI tools to accelerate development cycles.
+
+

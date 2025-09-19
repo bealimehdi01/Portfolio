@@ -3,6 +3,7 @@ const EMAILJS_PUBLIC_KEY = 'f1_-zhshNpK1QBwCS';
 const EMAILJS_SERVICE_ID = 'service_04s34b8';  
 const EMAILJS_TEMPLATE_ID = 'template_ez6fmiw';
 
+
 // Theme Toggle Functionality
 const themeToggle = document.querySelector('.theme-toggle');
 const body = document.body;
@@ -322,6 +323,9 @@ window.addEventListener('scroll', () => {
 
 // Contact Form Handling
 const contactForm = document.getElementById('contact-form');
+const submitBtn = contactForm.querySelector('button[type="submit"]');
+const submitBtnText = submitBtn.querySelector('span');
+const submitBtnIcon = submitBtn.querySelector('i');
 
 contactForm.addEventListener('submit', async (e) => {
     e.preventDefault();
@@ -369,6 +373,7 @@ contactForm.addEventListener('submit', async (e) => {
         // Restore button state
         submitButton.innerHTML = originalButtonText;
         submitButton.disabled = false;
+
     }
 });
 
@@ -522,17 +527,818 @@ document.querySelectorAll('.project-card').forEach(card => {
     });
 });
 
-// Easter Egg - Konami Code
+// Easter Egg - Konami Code with Mario Game
 let konamiCode = [38, 38, 40, 40, 37, 39, 37, 39, 66, 65];
 let konamiIndex = 0;
+let gameActive = false;
+let gameScore = 0;
+let gameCoins = [];
+let playerPosition = { x: 50, y: 80 };
+let gameContainer = null;
+let gameAudio = null;
+let gameInterval = null;
+let coinCount = 0;
+const totalCoins = 15;
+let currentGameMode = 'collect'; // 'collect' or 'snake'
+let snakeBody = [];
+let foodPosition = { x: 0, y: 0 };
+let snakeDirection = { x: 20, y: 0 };
+let snakeGameSpeed = 150;
 
+// Create game audio context
+function createGameAudio() {
+    // Create a simple Mario-style power-up sound using Web Audio API
+    const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+    let backgroundMusic = null;
+    let backgroundGainNode = null;
+    
+    function playPowerUpSound() {
+        const oscillator = audioContext.createOscillator();
+        const gainNode = audioContext.createGain();
+        
+        oscillator.connect(gainNode);
+        gainNode.connect(audioContext.destination);
+        
+        // Mario power-up melody frequencies
+        const notes = [523.25, 659.25, 783.99, 1046.5, 1318.5];
+        let noteIndex = 0;
+        
+        oscillator.frequency.setValueAtTime(notes[0], audioContext.currentTime);
+        gainNode.gain.setValueAtTime(0.3, audioContext.currentTime);
+        
+        const playNextNote = () => {
+            if (noteIndex < notes.length - 1) {
+                noteIndex++;
+                oscillator.frequency.setValueAtTime(notes[noteIndex], audioContext.currentTime + noteIndex * 0.1);
+            }
+        };
+        
+        for (let i = 0; i < notes.length; i++) {
+            setTimeout(playNextNote, i * 100);
+        }
+        
+        oscillator.start(audioContext.currentTime);
+        oscillator.stop(audioContext.currentTime + 0.8);
+        
+        gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.8);
+    }
+    
+    function playCoinSound() {
+        const oscillator = audioContext.createOscillator();
+        const gainNode = audioContext.createGain();
+        
+        oscillator.connect(gainNode);
+        gainNode.connect(audioContext.destination);
+        
+        oscillator.frequency.setValueAtTime(800, audioContext.currentTime);
+        oscillator.frequency.setValueAtTime(1200, audioContext.currentTime + 0.1);
+        gainNode.gain.setValueAtTime(0.2, audioContext.currentTime);
+        gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.2);
+        
+        oscillator.start(audioContext.currentTime);
+        oscillator.stop(audioContext.currentTime + 0.2);
+    }
+    
+    function playStarPowerMusic() {
+        if (backgroundMusic) {
+            stopBackgroundMusic();
+        }
+        
+        backgroundMusic = audioContext.createOscillator();
+        backgroundGainNode = audioContext.createGain();
+        
+        backgroundMusic.connect(backgroundGainNode);
+        backgroundGainNode.connect(audioContext.destination);
+        
+        // Mario Star Power melody - simplified version
+        const starPowerNotes = [
+            659.25, 659.25, 659.25, 523.25, 659.25, 783.99, 392.00,
+            523.25, 392.00, 329.63, 440.00, 493.88, 466.16, 440.00
+        ];
+        
+        let noteIndex = 0;
+        const noteDuration = 0.25; // Quarter second per note
+        
+        backgroundGainNode.gain.setValueAtTime(0.15, audioContext.currentTime);
+        
+        function playNextNote() {
+            if (backgroundMusic && noteIndex < starPowerNotes.length) {
+                backgroundMusic.frequency.setValueAtTime(
+                    starPowerNotes[noteIndex], 
+                    audioContext.currentTime
+                );
+                noteIndex++;
+                
+                setTimeout(() => {
+                    if (noteIndex >= starPowerNotes.length) {
+                        noteIndex = 0; // Loop the melody
+                    }
+                    playNextNote();
+                }, noteDuration * 1000);
+            }
+        }
+        
+        backgroundMusic.start(audioContext.currentTime);
+        playNextNote();
+    }
+    
+    function stopBackgroundMusic() {
+        if (backgroundMusic) {
+            backgroundGainNode.gain.exponentialRampToValueAtTime(0.001, audioContext.currentTime + 0.5);
+            backgroundMusic.stop(audioContext.currentTime + 0.5);
+            backgroundMusic = null;
+            backgroundGainNode = null;
+        }
+    }
+    
+    function playJumpSound() {
+        const oscillator = audioContext.createOscillator();
+        const gainNode = audioContext.createGain();
+        
+        oscillator.connect(gainNode);
+        gainNode.connect(audioContext.destination);
+        
+        oscillator.frequency.setValueAtTime(400, audioContext.currentTime);
+        oscillator.frequency.exponentialRampToValueAtTime(600, audioContext.currentTime + 0.1);
+        gainNode.gain.setValueAtTime(0.1, audioContext.currentTime);
+        gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.1);
+        
+        oscillator.start(audioContext.currentTime);
+        oscillator.stop(audioContext.currentTime + 0.1);
+    }
+    
+    return { 
+        playPowerUpSound, 
+        playCoinSound, 
+        playStarPowerMusic, 
+        stopBackgroundMusic,
+        playJumpSound 
+    };
+}
+
+// Create the Mario-style game
+function createMarioGame() {
+    gameContainer = document.createElement('div');
+    gameContainer.id = 'mario-game';
+    gameContainer.innerHTML = `
+        <div class="game-ui">
+            <div class="score">Score: <span id="game-score">0</span></div>
+            <div class="coins-left">Items: <span id="coins-collected">0</span>/${totalCoins}</div>
+            <div class="game-controls">
+                <button id="switch-game" class="game-btn">Switch to Snake Game</button>
+            </div>
+            <div class="instructions">Use ARROW KEYS to move and collect items!</div>
+        </div>
+        <div class="game-area" id="game-area">
+            <div class="player" id="mario-player">🟡</div>
+        </div>
+        <div class="game-message" id="game-message"></div>
+    `;
+    
+    // Add game styles
+    const gameStyles = document.createElement('style');
+    gameStyles.textContent = `
+        #mario-game {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            background: linear-gradient(to bottom, #87CEEB 0%, #87CEEB 60%, #228B22 60%, #228B22 100%);
+            z-index: 10000;
+            font-family: 'Arial', sans-serif;
+            overflow: hidden;
+        }
+        
+        .game-ui {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            right: 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            color: white;
+            font-weight: bold;
+            font-size: 18px;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.7);
+            z-index: 10001;
+            flex-wrap: wrap;
+        }
+        
+        .game-btn {
+            background: #FFD700;
+            color: #000;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 20px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            font-size: 14px;
+        }
+        
+        .game-btn:hover {
+            background: #FFA500;
+            transform: scale(1.05);
+        }
+        
+        .instructions {
+            font-size: 14px;
+            color: #FFD700;
+            animation: pulse 2s infinite;
+        }
+        
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.7; }
+        }
+        
+        .game-area {
+            position: relative;
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+        }
+        
+        .coin {
+            position: absolute;
+            width: 30px;
+            height: 30px;
+            font-size: 25px;
+            animation: spin 2s linear infinite, float 3s ease-in-out infinite;
+            z-index: 10001;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+        
+        .coin:hover {
+            transform: scale(1.2);
+        }
+        
+        .special-item {
+            font-size: 30px;
+            animation: spin 1.5s linear infinite, float 2s ease-in-out infinite, sparkle 2s ease-in-out infinite;
+        }
+        
+        @keyframes sparkle {
+            0%, 100% { filter: brightness(1) drop-shadow(0 0 5px gold); }
+            50% { filter: brightness(1.5) drop-shadow(0 0 15px gold); }
+        }
+        
+        .player {
+            position: absolute;
+            width: 40px;
+            height: 40px;
+            font-size: 30px;
+            transition: all 0.08s ease;
+            z-index: 10002;
+            filter: drop-shadow(2px 2px 4px rgba(0,0,0,0.5));
+        }
+        
+        .snake-segment {
+            position: absolute;
+            width: 20px;
+            height: 20px;
+            font-size: 16px;
+            z-index: 10002;
+        }
+        
+        .snake-food {
+            position: absolute;
+            width: 20px;
+            height: 20px;
+            font-size: 16px;
+            z-index: 10001;
+            animation: pulse 1s infinite;
+        }
+        
+        @keyframes spin {
+            from { transform: rotateY(0deg); }
+            to { transform: rotateY(360deg); }
+        }
+        
+        @keyframes float {
+            0%, 100% { transform: translateY(0px); }
+            50% { transform: translateY(-10px); }
+        }
+        
+        .game-message {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: rgba(0,0,0,0.8);
+            color: #FFD700;
+            padding: 30px;
+            border-radius: 15px;
+            font-size: 24px;
+            text-align: center;
+            display: none;
+            z-index: 10005;
+            border: 3px solid #FFD700;
+            box-shadow: 0 0 20px rgba(255,215,0,0.5);
+        }
+        
+        .game-message.show {
+            display: block;
+            animation: slideIn 0.5s ease-out;
+        }
+        
+        @keyframes slideIn {
+            from { 
+                opacity: 0;
+                transform: translate(-50%, -50%) scale(0.5);
+            }
+            to { 
+                opacity: 1;
+                transform: translate(-50%, -50%) scale(1);
+            }
+        }
+        
+        .close-game-btn {
+            background: #FFD700;
+            color: #000;
+            border: none;
+            padding: 10px 20px;
+            margin-top: 15px;
+            border-radius: 5px;
+            font-weight: bold;
+            cursor: pointer;
+            font-size: 16px;
+            transition: all 0.3s ease;
+        }
+        
+        .close-game-btn:hover {
+            background: #FFA500;
+            transform: scale(1.05);
+        }
+        
+        .rainbow-bg {
+            animation: rainbow-background 3s linear infinite;
+        }
+        
+        @keyframes rainbow-background {
+            0% { filter: hue-rotate(0deg); }
+            100% { filter: hue-rotate(360deg); }
+        }
+    `;
+    
+    document.head.appendChild(gameStyles);
+    document.body.appendChild(gameContainer);
+    
+    // Initialize game audio
+    gameAudio = createGameAudio();
+    gameAudio.playPowerUpSound();
+    
+    // Start background music after a short delay
+    setTimeout(() => {
+        gameAudio.playStarPowerMusic();
+    }, 1000);
+    
+    // Add event listener for game switch button
+    document.getElementById('switch-game').addEventListener('click', () => {
+        switchGameMode();
+    });
+    
+    // Start the game
+    startGame();
+}
+
+// Switch between game modes
+function switchGameMode() {
+    if (currentGameMode === 'collect') {
+        currentGameMode = 'snake';
+        document.getElementById('switch-game').textContent = 'Switch to Collect Game';
+        startSnakeGame();
+    } else {
+        currentGameMode = 'collect';
+        document.getElementById('switch-game').textContent = 'Switch to Snake Game';
+        startCollectGame();
+    }
+}
+
+// Start Snake Game
+function startSnakeGame() {
+    // Clear existing game
+    const gameArea = document.getElementById('game-area');
+    gameArea.innerHTML = '';
+    
+    // Initialize snake
+    snakeBody = [
+        { x: 200, y: 200 },
+        { x: 180, y: 200 },
+        { x: 160, y: 200 }
+    ];
+    snakeDirection = { x: 20, y: 0 };
+    
+    // Create snake segments
+    snakeBody.forEach((segment, index) => {
+        const snakeSegment = document.createElement('div');
+        snakeSegment.className = 'snake-segment';
+        snakeSegment.style.left = segment.x + 'px';
+        snakeSegment.style.top = segment.y + 'px';
+        snakeSegment.innerHTML = index === 0 ? '🟡' : '🟢';
+        gameArea.appendChild(snakeSegment);
+    });
+    
+    // Generate food
+    generateSnakeFood();
+    
+    // Update instructions
+    document.querySelector('.instructions').textContent = 'Snake Game: Eat food to grow! Don\'t hit walls or yourself!';
+    
+    // Start snake movement
+    if (gameInterval) clearInterval(gameInterval);
+    gameInterval = setInterval(moveSnake, snakeGameSpeed);
+    
+    // Update event listener
+    document.removeEventListener('keydown', handleGameInput);
+    document.addEventListener('keydown', handleSnakeInput);
+}
+
+// Start Collect Game
+function startCollectGame() {
+    // Clear existing game
+    const gameArea = document.getElementById('game-area');
+    gameArea.innerHTML = '';
+    
+    // Create player
+    const player = document.createElement('div');
+    player.className = 'player';
+    player.id = 'mario-player';
+    player.innerHTML = '🟡';
+    gameArea.appendChild(player);
+    
+    // Generate collectibles
+    generateCoins();
+    
+    // Update instructions
+    document.querySelector('.instructions').textContent = 'Use ARROW KEYS to move and collect items!';
+    
+    // Position player
+    playerPosition = { x: 50, y: window.innerHeight - 100 };
+    player.style.left = playerPosition.x + 'px';
+    player.style.top = playerPosition.y + 'px';
+    
+    // Clear snake interval
+    if (gameInterval) clearInterval(gameInterval);
+    
+    // Update event listener
+    document.removeEventListener('keydown', handleSnakeInput);
+    document.addEventListener('keydown', handleGameInput);
+    
+    // Start collision checking
+    gameInterval = setInterval(checkCollisions, 50);
+}
+
+// Generate food for snake
+function generateSnakeFood() {
+    const gameArea = document.getElementById('game-area');
+    const existing = gameArea.querySelector('.snake-food');
+    if (existing) existing.remove();
+    
+    foodPosition = {
+        x: Math.floor(Math.random() * (window.innerWidth - 60) / 20) * 20,
+        y: Math.floor(Math.random() * (window.innerHeight - 160) / 20) * 20 + 100
+    };
+    
+    const food = document.createElement('div');
+    food.className = 'snake-food';
+    food.style.left = foodPosition.x + 'px';
+    food.style.top = foodPosition.y + 'px';
+    food.innerHTML = '🍎';
+    gameArea.appendChild(food);
+}
+
+// Move snake
+function moveSnake() {
+    const head = { ...snakeBody[0] };
+    head.x += snakeDirection.x;
+    head.y += snakeDirection.y;
+    
+    // Check wall collision
+    if (head.x < 0 || head.x >= window.innerWidth - 20 || 
+        head.y < 80 || head.y >= window.innerHeight - 20) {
+        gameOver();
+        return;
+    }
+    
+    // Check self collision
+    if (snakeBody.some(segment => segment.x === head.x && segment.y === head.y)) {
+        gameOver();
+        return;
+    }
+    
+    snakeBody.unshift(head);
+    
+    // Check food collision
+    if (head.x === foodPosition.x && head.y === foodPosition.y) {
+        gameScore += 10;
+        updateUI();
+        gameAudio.playCoinSound();
+        generateSnakeFood();
+    } else {
+        snakeBody.pop();
+    }
+    
+    // Update visual
+    updateSnakeVisual();
+}
+
+// Update snake visual
+function updateSnakeVisual() {
+    const gameArea = document.getElementById('game-area');
+    const segments = gameArea.querySelectorAll('.snake-segment');
+    segments.forEach(segment => segment.remove());
+    
+    snakeBody.forEach((segment, index) => {
+        const snakeSegment = document.createElement('div');
+        snakeSegment.className = 'snake-segment';
+        snakeSegment.style.left = segment.x + 'px';
+        snakeSegment.style.top = segment.y + 'px';
+        snakeSegment.innerHTML = index === 0 ? '🟡' : '🟢';
+        gameArea.appendChild(snakeSegment);
+    });
+}
+
+// Handle snake input
+function handleSnakeInput(e) {
+    if (!gameActive) return;
+    
+    switch(e.key) {
+        case 'ArrowLeft':
+            e.preventDefault();
+            if (snakeDirection.x === 0) {
+                snakeDirection = { x: -20, y: 0 };
+            }
+            break;
+        case 'ArrowRight':
+            e.preventDefault();
+            if (snakeDirection.x === 0) {
+                snakeDirection = { x: 20, y: 0 };
+            }
+            break;
+        case 'ArrowUp':
+            e.preventDefault();
+            if (snakeDirection.y === 0) {
+                snakeDirection = { x: 0, y: -20 };
+            }
+            break;
+        case 'ArrowDown':
+            e.preventDefault();
+            if (snakeDirection.y === 0) {
+                snakeDirection = { x: 0, y: 20 };
+            }
+            break;
+    }
+}
+
+// Game over for snake
+function gameOver() {
+    gameActive = false;
+    clearInterval(gameInterval);
+    document.removeEventListener('keydown', handleSnakeInput);
+    
+    const gameMessage = document.getElementById('game-message');
+    gameMessage.innerHTML = `
+        <h2>🐍 Game Over! 🐍</h2>
+        <p><strong>Your Score: ${gameScore}</strong></p>
+        <p>Snake Length: ${snakeBody.length}</p>
+        <button class="close-game-btn" onclick="closeGame()">Return to Portfolio</button>
+    `;
+    gameMessage.classList.add('show');
+}
+
+// Generate random collectibles
+function generateCoins() {
+    gameCoins = [];
+    const collectibles = ['💎', '⭐', '🍒', '🍓', '🥇', '👑', '💝', '🎁', '🌟', '💰'];
+    
+    for (let i = 0; i < totalCoins; i++) {
+        const coin = {
+            x: Math.random() * (window.innerWidth - 50),
+            y: Math.random() * (window.innerHeight - 200) + 100,
+            id: i,
+            type: collectibles[Math.floor(Math.random() * collectibles.length)]
+        };
+        gameCoins.push(coin);
+        
+        const coinElement = document.createElement('div');
+        coinElement.className = 'coin';
+        coinElement.innerHTML = coin.type;
+        coinElement.style.left = coin.x + 'px';
+        coinElement.style.top = coin.y + 'px';
+        coinElement.setAttribute('data-coin-id', i);
+        
+        // Add special effects for certain collectibles
+        if (coin.type === '⭐' || coin.type === '💎') {
+            coinElement.classList.add('special-item');
+        }
+        
+        document.getElementById('game-area').appendChild(coinElement);
+    }
+}
+
+// Start the game
+function startGame() {
+    gameActive = true;
+    gameScore = 0;
+    coinCount = 0;
+    
+    // Start with collect game by default
+    currentGameMode = 'collect';
+    startCollectGame();
+    
+    // Add rainbow background effect
+    gameContainer.classList.add('rainbow-bg');
+}
+
+// Handle game input
+function handleGameInput(e) {
+    if (!gameActive) return;
+    
+    const player = document.getElementById('mario-player');
+    const speed = 20; // Increased speed for smoother movement
+    
+    switch(e.key) {
+        case 'ArrowLeft':
+            e.preventDefault();
+            playerPosition.x = Math.max(0, playerPosition.x - speed);
+            gameAudio.playJumpSound();
+            break;
+        case 'ArrowRight':
+            e.preventDefault();
+            playerPosition.x = Math.min(window.innerWidth - 40, playerPosition.x + speed);
+            gameAudio.playJumpSound();
+            break;
+        case 'ArrowUp':
+            e.preventDefault();
+            playerPosition.y = Math.max(80, playerPosition.y - speed);
+            gameAudio.playJumpSound();
+            break;
+        case 'ArrowDown':
+            e.preventDefault();
+            playerPosition.y = Math.min(window.innerHeight - 40, playerPosition.y + speed);
+            gameAudio.playJumpSound();
+            break;
+    }
+    
+    player.style.left = playerPosition.x + 'px';
+    player.style.top = playerPosition.y + 'px';
+    
+    // Add a brief scaling effect for movement feedback
+    player.style.transform = 'scale(1.1)';
+    setTimeout(() => {
+        player.style.transform = 'scale(1)';
+    }, 100);
+}
+
+// Check for coin collections
+function checkCollisions() {
+    const playerRect = {
+        x: playerPosition.x,
+        y: playerPosition.y,
+        width: 40,
+        height: 40
+    };
+    
+    gameCoins.forEach((coin, index) => {
+        if (coin.collected) return;
+        
+        const coinRect = {
+            x: coin.x,
+            y: coin.y,
+            width: 30,
+            height: 30
+        };
+        
+        // Simple collision detection
+        if (playerRect.x < coinRect.x + coinRect.width &&
+            playerRect.x + playerRect.width > coinRect.x &&
+            playerRect.y < coinRect.y + coinRect.height &&
+            playerRect.y + playerRect.height > coinRect.y) {
+            
+            // Collect coin
+            coin.collected = true;
+            coinCount++;
+            gameScore += 100;
+            
+            // Remove coin from DOM
+            const coinElement = document.querySelector(`[data-coin-id="${coin.id}"]`);
+            if (coinElement) {
+                coinElement.style.animation = 'none';
+                coinElement.style.transform = 'scale(1.5)';
+                coinElement.style.opacity = '0';
+                setTimeout(() => coinElement.remove(), 200);
+            }
+            
+            // Play coin sound
+            gameAudio.playCoinSound();
+            
+            // Check if all coins collected
+            if (coinCount >= totalCoins) {
+                endGame();
+            }
+        }
+    });
+}
+
+// Update game UI
+function updateUI() {
+    document.getElementById('game-score').textContent = gameScore;
+    document.getElementById('coins-collected').textContent = coinCount;
+}
+
+// End game and show results
+function endGame() {
+    gameActive = false;
+    clearInterval(gameInterval);
+    document.removeEventListener('keydown', handleGameInput);
+    
+    // Save score to localStorage for rankings
+    saveScore(gameScore);
+    
+    const gameMessage = document.getElementById('game-message');
+    const rankings = getTopScores();
+    
+    gameMessage.innerHTML = `
+        <h2>🎉 Congratulations! 🎉</h2>
+        <p>You collected all ${totalCoins} coins!</p>
+        <p><strong>Your Score: ${gameScore}</strong></p>
+        <div style="margin: 20px 0;">
+            <h3>🏆 Top Scores</h3>
+            ${rankings.map((score, index) => 
+                `<div style="margin: 5px 0; ${score === gameScore ? 'color: #FFD700; font-weight: bold;' : ''}">${index + 1}. ${score} points</div>`
+            ).join('')}
+        </div>
+        <p style="color: #FFD700; font-size: 18px; margin: 20px 0;">
+            <strong>Tell Ali about your score!</strong><br>
+            <small>Contact him through the portfolio form 📧</small>
+        </p>
+        <button class="close-game-btn" onclick="closeGame()">Return to Portfolio</button>
+    `;
+    
+    gameMessage.classList.add('show');
+}
+
+// Save score to localStorage
+function saveScore(score) {
+    let scores = JSON.parse(localStorage.getItem('marioGameScores') || '[]');
+    scores.push(score);
+    scores.sort((a, b) => b - a); // Sort descending
+    scores = scores.slice(0, 10); // Keep top 10
+    localStorage.setItem('marioGameScores', JSON.stringify(scores));
+}
+
+// Get top scores
+function getTopScores() {
+    return JSON.parse(localStorage.getItem('marioGameScores') || '[]').slice(0, 5);
+}
+
+// Close game and return to portfolio
+function closeGame() {
+    if (gameContainer) {
+        gameContainer.remove();
+        gameContainer = null;
+    }
+    
+    // Stop background music
+    if (gameAudio) {
+        gameAudio.stopBackgroundMusic();
+    }
+    
+    // Remove event listeners
+    document.removeEventListener('keydown', handleGameInput);
+    if (gameInterval) {
+        clearInterval(gameInterval);
+        gameInterval = null;
+    }
+    
+    // Reset variables
+    gameActive = false;
+    gameScore = 0;
+    gameCoins = [];
+    coinCount = 0;
+    
+    // Show return notification
+    showNotification('🎮 Thanks for playing! Don\'t forget to tell Ali about your score!', 'success');
+}
+
+// Make closeGame global for button onclick
+window.closeGame = closeGame;
+
+// Konami code listener
 document.addEventListener('keydown', (e) => {
+    if (gameActive) return; // Don't trigger if game is already active
+    
     if (e.keyCode === konamiCode[konamiIndex]) {
         konamiIndex++;
         if (konamiIndex === konamiCode.length) {
             // Easter egg activated!
             showNotification('🎉 Konami Code activated! Starting the Portfolio Game!', 'success');
             startPortfolioGame();
+
             konamiIndex = 0;
         }
     } else {
