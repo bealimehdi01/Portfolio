@@ -310,6 +310,7 @@ body {
     color: white;
     box-shadow: var(--shadow-heavy);
     position: relative;
+    overflow: hidden;
 }
 
 .image-placeholder::before {
@@ -328,6 +329,13 @@ body {
 @keyframes pulse {
     0% { transform: scale(1); opacity: 1; }
     100% { transform: scale(1.1); opacity: 0; }
+}
+
+.profile-photo {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    border-radius: 50%;
 }
 
 .scroll-indicator {
@@ -447,6 +455,13 @@ section {
     justify-content: center;
     font-size: 6rem;
     color: white;
+    overflow: hidden;
+}
+
+.about-photo {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
 }
 
 /* Experience Section */
@@ -601,8 +616,9 @@ section {
 /* Skills Section */
 .skills-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+    grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
     gap: 2rem;
+    margin-top: 2rem;
 }
 
 .skill-category {
@@ -612,31 +628,135 @@ section {
     box-shadow: var(--shadow-light);
     transition: var(--transition);
     border: 1px solid var(--border-color);
+    position: relative;
+    overflow: hidden;
+}
+
+.skill-category::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 4px;
+    background: var(--gradient-primary);
 }
 
 .skill-category:hover {
-    transform: translateY(-5px);
-    box-shadow: var(--shadow-medium);
+    transform: translateY(-8px);
+    box-shadow: var(--shadow-heavy);
+    border-color: var(--primary-color);
 }
 
 .category-title {
-    font-size: 1.5rem;
+    font-size: 1.4rem;
     font-weight: 600;
     margin-bottom: 1.5rem;
     color: var(--primary-color);
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.category-title::before {
+    content: '🚀';
+    font-size: 1.2rem;
+}
+
+.skill-category:nth-child(2) .category-title::before {
+    content: '🤖';
+}
+
+.skill-category:nth-child(3) .category-title::before {
+    content: '🗄️';
+}
+
+.skill-category:nth-child(4) .category-title::before {
+    content: '⚡';
+}
+
+.skill-category:nth-child(5) .category-title::before {
+    content: '🔒';
+}
+
+.skill-category:nth-child(6) .category-title::before {
+    content: '🛠️';
+}
+
+.skill-category:nth-child(7) .category-title::before {
+    content: '✨';
 }
 
 .skill-items {
     display: grid;
-    grid-template-columns: repeat(2, 1fr);
+    grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
     gap: 1rem;
 }
 
 .skill-item {
     display: flex;
+    flex-direction: column;
     align-items: center;
     gap: 0.5rem;
-    padding: 0.75rem;
+    padding: 1rem 0.75rem;
+    background: var(--bg-secondary);
+    border-radius: 12px;
+    transition: var(--transition);
+    text-align: center;
+    border: 2px solid transparent;
+    position: relative;
+    overflow: hidden;
+}
+
+.skill-item::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: var(--gradient-primary);
+    opacity: 0;
+    transition: var(--transition);
+    z-index: 0;
+}
+
+.skill-item:hover::before {
+    opacity: 0.1;
+}
+
+.skill-item:hover {
+    transform: translateY(-3px) scale(1.05);
+    border-color: var(--primary-color);
+    box-shadow: var(--shadow-medium);
+}
+
+.skill-item i {
+    font-size: 1.5rem;
+    color: var(--primary-color);
+    transition: var(--transition);
+    position: relative;
+    z-index: 1;
+}
+
+.skill-item:hover i {
+    color: var(--secondary-color);
+    transform: scale(1.1);
+}
+
+.skill-item span {
+    font-size: 0.9rem;
+    font-weight: 500;
+    color: var(--text-color);
+    position: relative;
+    z-index: 1;
+    transition: var(--transition);
+}
+
+.skill-item:hover span {
+    color: var(--primary-color);
+    font-weight: 600;
+}
     background: var(--bg-secondary);
     border-radius: 10px;
     transition: var(--transition);
@@ -764,6 +884,55 @@ section {
     font-size: 0.8rem;
     font-weight: 500;
     color: var(--primary-color);
+}
+
+/* Projects Show More Functionality */
+.hidden-project {
+    display: none;
+    opacity: 0;
+    transform: translateY(20px);
+    transition: all 0.5s ease;
+}
+
+.hidden-project.show {
+    display: block;
+    opacity: 1;
+    transform: translateY(0);
+}
+
+.show-more-container {
+    display: flex;
+    justify-content: center;
+    margin-top: 3rem;
+}
+
+.show-more-btn {
+    background: var(--gradient-primary);
+    color: white;
+    border: none;
+    padding: 1rem 2rem;
+    border-radius: 50px;
+    font-size: 1rem;
+    font-weight: 600;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    transition: var(--transition);
+    box-shadow: var(--shadow-medium);
+}
+
+.show-more-btn:hover {
+    transform: translateY(-2px);
+    box-shadow: var(--shadow-heavy);
+}
+
+.show-more-btn i {
+    transition: transform 0.3s ease;
+}
+
+.show-more-btn.expanded i {
+    transform: rotate(180deg);
 }
 
 /* Contact Section */
@@ -1071,4 +1240,110 @@ section {
 @keyframes spin {
     0% { transform: rotate(0deg); }
     100% { transform: rotate(360deg); }
+}
+
+/* Konami Hint Styles */
+.konami-hint {
+    position: fixed;
+    bottom: 20px;
+    right: 20px;
+    z-index: 10000;
+    max-width: 350px;
+    background: var(--gradient-primary);
+    border-radius: 12px;
+    box-shadow: var(--shadow-heavy);
+    animation: slideInUp 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.hint-content {
+    padding: 16px 20px;
+    color: white;
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.hint-icon {
+    font-size: 1.5rem;
+    display: block;
+    text-align: center;
+    margin-bottom: 4px;
+}
+
+.hint-text {
+    font-size: 0.9rem;
+    line-height: 1.4;
+    text-align: center;
+}
+
+.hint-text strong {
+    font-weight: 600;
+    color: #ffd700;
+}
+
+.hint-keys {
+    font-family: 'Courier New', monospace;
+    font-size: 0.85rem;
+    text-align: center;
+    background: rgba(255, 255, 255, 0.2);
+    padding: 6px 12px;
+    border-radius: 6px;
+    letter-spacing: 1px;
+    font-weight: 500;
+}
+
+.hint-close {
+    position: absolute;
+    top: 8px;
+    right: 12px;
+    background: none;
+    border: none;
+    color: white;
+    font-size: 1.2rem;
+    cursor: pointer;
+    width: 24px;
+    height: 24px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 50%;
+    transition: background-color 0.2s ease;
+}
+
+.hint-close:hover {
+    background-color: rgba(255, 255, 255, 0.2);
+}
+
+@keyframes slideInUp {
+    from {
+        transform: translateY(100px);
+        opacity: 0;
+    }
+    to {
+        transform: translateY(0);
+        opacity: 1;
+    }
+}
+
+/* Mobile responsiveness for hint */
+@media (max-width: 768px) {
+    .konami-hint {
+        bottom: 10px;
+        right: 10px;
+        left: 10px;
+        max-width: none;
+    }
+    
+    .hint-content {
+        padding: 14px 16px;
+    }
+    
+    .hint-text {
+        font-size: 0.85rem;
+    }
+    
+    .hint-keys {
+        font-size: 0.8rem;
+    }
 }
