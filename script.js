@@ -1790,3 +1790,57 @@ function closePortfolioGame() {
     
     showNotification(`🎮 Game Over! Final Score: ${gameState.score}`, 'info');
 }
+
+// Projects Show More Functionality
+document.addEventListener('DOMContentLoaded', () => {
+    const showMoreBtn = document.getElementById('show-more-btn');
+    const hiddenProjects = document.querySelectorAll('.hidden-project');
+    const btnText = showMoreBtn.querySelector('.btn-text');
+    const btnIcon = showMoreBtn.querySelector('i');
+    
+    let isExpanded = false;
+    
+    showMoreBtn.addEventListener('click', () => {
+        isExpanded = !isExpanded;
+        
+        if (isExpanded) {
+            // Show hidden projects
+            hiddenProjects.forEach((project, index) => {
+                setTimeout(() => {
+                    project.classList.add('show');
+                    project.style.display = 'block';
+                    // Trigger reflow to enable transition
+                    project.offsetHeight;
+                    project.style.opacity = '1';
+                    project.style.transform = 'translateY(0)';
+                }, index * 100);
+            });
+            
+            btnText.textContent = 'Show Less Projects';
+            showMoreBtn.classList.add('expanded');
+        } else {
+            // Hide projects
+            hiddenProjects.forEach((project, index) => {
+                setTimeout(() => {
+                    project.style.opacity = '0';
+                    project.style.transform = 'translateY(20px)';
+                    
+                    // Hide after transition
+                    setTimeout(() => {
+                        project.classList.remove('show');
+                        project.style.display = 'none';
+                    }, 300);
+                }, index * 50);
+            });
+            
+            btnText.textContent = 'Show More Projects';
+            showMoreBtn.classList.remove('expanded');
+            
+            // Scroll back to projects section
+            document.getElementById('projects').scrollIntoView({ 
+                behavior: 'smooth',
+                block: 'start'
+            });
+        }
+    });
+});
