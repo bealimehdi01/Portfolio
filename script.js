@@ -1337,7 +1337,7 @@ document.addEventListener('keydown', (e) => {
         if (konamiIndex === konamiCode.length) {
             // Easter egg activated!
             showNotification('🎉 Konami Code activated! Starting the Portfolio Game!', 'success');
-            startPortfolioGame();
+            createMarioGame();
 
             konamiIndex = 0;
         }
