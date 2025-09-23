@@ -1328,6 +1328,40 @@ function closeGame() {
 // Make closeGame global for button onclick
 window.closeGame = closeGame;
 
+// Konami code hint system
+let konamiHintShown = false;
+let gameActivatedBefore = false;
+
+// Show Konami code hint after 2 minutes
+setTimeout(() => {
+    if (!gameActivatedBefore && !konamiHintShown) {
+        showKonamiHint();
+        konamiHintShown = true;
+    }
+}, 120000); // 2 minutes = 120,000 milliseconds
+
+function showKonamiHint() {
+    const hint = document.createElement('div');
+    hint.className = 'konami-hint';
+    hint.innerHTML = `
+        <div class="hint-content">
+            <span class="hint-icon">🎮</span>
+            <span class="hint-text">Try the <strong>Konami Code</strong> on your keyboard for a surprise!</span>
+            <span class="hint-keys">↑↑↓↓←→←→BA</span>
+            <button class="hint-close" onclick="this.parentElement.parentElement.remove()">×</button>
+        </div>
+    `;
+    
+    document.body.appendChild(hint);
+    
+    // Auto-remove after 10 seconds if not closed manually
+    setTimeout(() => {
+        if (hint.parentElement) {
+            hint.remove();
+        }
+    }, 10000);
+}
+
 // Konami code listener
 document.addEventListener('keydown', (e) => {
     if (gameActive) return; // Don't trigger if game is already active
@@ -1336,10 +1370,17 @@ document.addEventListener('keydown', (e) => {
         konamiIndex++;
         if (konamiIndex === konamiCode.length) {
             // Easter egg activated!
+            gameActivatedBefore = true;
             showNotification('🎉 Konami Code activated! Starting the Portfolio Game!', 'success');
             createMarioGame();
 
             konamiIndex = 0;
+            
+            // Remove hint if it's still showing
+            const existingHint = document.querySelector('.konami-hint');
+            if (existingHint) {
+                existingHint.remove();
+            }
         }
     } else {
         konamiIndex = 0;
